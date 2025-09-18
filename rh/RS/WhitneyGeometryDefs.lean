@@ -119,7 +119,7 @@ lemma tent_mono
 /-- Monotonicity of box energy under set inclusion (assuming finiteness on the larger set). -/
 lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ × ℝ)}
     {P Q : Set (ℝ × ℝ)} (h : P ⊆ Q)
-    (hPmeas : MeasurableSet P) (hQmeas : MeasurableSet Q)
+    (_hPmeas : MeasurableSet P) (_hQmeas : MeasurableSet Q)
     (hfinQ : (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) < ⊤) :
     boxEnergy gradU σ P ≤ boxEnergy gradU σ Q := by
   -- Work at the level of lintegrals with nonnegative integrand and then apply toReal_le_toReal
@@ -128,7 +128,9 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
   have hmono :
       (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ)
         ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) := by
-    exact lintegral_mono_set (μ := σ) (s := P) (t := Q) h hPmeas hQmeas
+    -- use the set-monotonicity of the set integral
+    exact lintegral_mono_set (μ := σ)
+      (f := fun p => ENNReal.ofReal (‖gradU p‖^2 * p.2)) (s := P) (t := Q) h
   -- Finiteness of both sides
   have hIQfin :
       (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) ≠ ⊤ := by
@@ -182,13 +184,16 @@ lemma finite_lintegral_on_tent_of_L2
     have hpU : p.2 ≤ α * length I := by simpa [tent, Set.mem_setOf_eq] using hp.2.2
     exact le_trans hpU (le_max_left _ _)
   -- measurability of the predicate {p | p.2 ≤ C}
-  have hPred : MeasurableSet {p : (ℝ × ℝ) | p.2 ≤ C} := by
-    have hc : IsClosed ((fun p : ℝ × ℝ => p.2) ⁻¹' Set.Iic C) :=
-      isClosed_Iic.preimage continuous_snd
-    simpa [Set.preimage, Set.mem_setOf_eq] using hc.measurableSet
-  have hBound_ae : ∀ᵐ p ∂(Measure.restrict volume (tent I α)), p.2 ≤ C := by
+  -- (not needed later, keep for reference)
+  -- have hPred : MeasurableSet {p : (ℝ × ℝ) | p.2 ≤ C} := by
+  --   have hc : IsClosed ((fun p : ℝ × ℝ => p.2) ⁻¹' Set.Iic C) :=
+  --     isClosed_Iic.preimage continuous_snd
+  --   simpa [Set.preimage, Set.mem_setOf_eq] using hc.measurableSet
+  have hBound_ae : ∀ᵐ p ∂(volume.restrict (tent I α)), p.2 ≤ C := by
     -- Convert AE statement on volume to AE on the restricted measure
-    simpa [ae_restrict_iff, hTent] using hBound_base
+    have hiff :=
+      (ae_restrict_iff' (μ := volume) (s := tent I α) (p := fun p : (ℝ × ℝ) => p.2 ≤ C) hTent)
+    exact hiff.mpr hBound_base
   -- Pointwise a.e. bound for the integrand on the tent
   have hpoint_ae :
       (∀ᵐ p ∂(Measure.restrict volume (tent I α)),
@@ -204,32 +209,47 @@ lemma finite_lintegral_on_tent_of_L2
       (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2))
         ≤ (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * C)) :=
     lintegral_mono_ae hpoint_ae
+  have hconst_eq₁ :
+      (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * C))
+        = (∫⁻ p in tent I α, ENNReal.ofReal C * ENNReal.ofReal (‖gradU p‖^2)) := by
+    -- pointwise equality using ofReal_mul (with constant first)
+    refine lintegral_congr_ae ?h
+    refine Filter.Eventually.of_forall (fun p => ?_)
+    have h1 : 0 ≤ ‖gradU p‖^2 := by exact sq_nonneg _
+    have h2 : 0 ≤ C := hCnonneg
+    -- ENNReal.ofReal (C * a) = ofReal C * ofReal a
+    simpa [mul_comm, mul_left_comm, mul_assoc] using (ENNReal.ofReal_mul' (p := C) (q := ‖gradU p‖^2) h1)
   have hconst_eq :
       (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * C))
         = ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
-    have hpt :
-        (fun p => ENNReal.ofReal (‖gradU p‖^2 * C))
-          = fun p => ENNReal.ofReal C * ENNReal.ofReal (‖gradU p‖^2) := by
-      funext p
-      have : 0 ≤ ‖gradU p‖^2 := sq_nonneg _
-      simpa [mul_comm, mul_left_comm, mul_assoc] using
-        (ENNReal.ofReal_mul this hCnonneg)
-    -- pull out the constant across the lintegral
+    -- pull out the constant across the lintegral on the restricted measure
+    have haemeas : AEMeasurable (fun p : (ℝ × ℝ) => ENNReal.ofReal (‖gradU p‖^2)) (volume.restrict (tent I α)) := by
+      have : AEMeasurable (fun p : (ℝ × ℝ) => ‖gradU p‖^2) (volume.restrict (tent I α)) :=
+        (hL2.aestronglyMeasurable.aemeasurable)
+      exact this.ennreal_ofReal
     have :
-        (∫⁻ p in tent I α, (fun _ => ENNReal.ofReal C) * ENNReal.ofReal (‖gradU p‖^2))
+        (∫⁻ p in tent I α, ENNReal.ofReal C * ENNReal.ofReal (‖gradU p‖^2))
           = ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
-      -- constant factor can be pulled out of lintegral on a measurable set
-      simp [Measure.restrict_apply, hTent]
-    simpa [hpt] using this
+      -- use a.e.-measurable on the restricted measure
+      simpa using
+        (MeasureTheory.lintegral_const_mul'' (μ := volume.restrict (tent I α))
+          (r := ENNReal.ofReal C) (f := fun p : (ℝ × ℝ) => ENNReal.ofReal (‖gradU p‖^2))
+          haemeas)
+    simpa [hconst_eq₁, this]
   have hlin :
       (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2))
         ≤ ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
     simpa [hconst_eq] using hlin₁
   -- Use L²-integrability to conclude finiteness of the RHS
   have hfin_sq : (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) < ⊤ := by
-    -- Standard: IntegrableOn f ⇒ lintegral (ofReal |f|) < ∞
-    have hInt := hL2.hasFiniteIntegral
-    simpa [Measure.restrict_apply, hTent, Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)] using hInt
+    -- positivity and integrability imply finiteness of lintegral of ofReal
+    have hpos : 0 ≤ᵐ[volume.restrict (tent I α)] (fun p : (ℝ × ℝ) => ‖gradU p‖^2) :=
+      Filter.Eventually.of_forall (fun _ => sq_nonneg _)
+    -- use the equivalence lemma
+    have hiff := hasFiniteIntegral_iff_ofReal (μ := volume.restrict (tent I α))
+      (f := fun p => ‖gradU p‖^2) hpos
+    -- hL2.hasFiniteIntegral gives HFI for the real function
+    exact (hiff.mp (Integrable.hasFiniteIntegral hL2))
   -- conclude finiteness by showing the product bound is < ⊤ via `mul_ne_top`
   have hCne : ENNReal.ofReal C ≠ ⊤ := by simp
   have hIne : (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) ≠ ⊤ := ne_of_lt hfin_sq
@@ -382,17 +402,22 @@ lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
       simpa [abs_lt] using this
   -- Compute the measure and its toReal
   have hlt : (c - r) < (c + r) := by linarith
+  have hle : (c - r) ≤ (c + r) := le_of_lt hlt
   have hvol : volume (Set.Ioo (c - r) (c + r))
       = ENNReal.ofReal ((c + r) - (c - r)) := by
-    simpa [Real.volume_Ioo, (le_of_lt hlt)]
-  have htoReal : (volume (Set.Ioo (c - r) (c + r))).toReal
-      = (c + r) - (c - r) := by
-    have hnonneg : 0 ≤ (c + r) - (c - r) := by linarith [le_of_lt hr]
-    simpa [hvol, ENNReal.toReal_ofReal, hnonneg]
+    simpa [Real.volume_Ioo, hle]
   have hring : (c + r) - (c - r) = 2 * r := by ring
-  have hr0 : 0 ≤ r := le_of_lt hr
+  have htoReal' : (volume (Set.Ioo (c - r) (c + r))).toReal = 2 * r := by
+    have hnonneg : 0 ≤ (2 : ℝ) * r := by
+      have : 0 ≤ r := le_of_lt hr
+      have : 0 ≤ (2 : ℝ) := by norm_num
+      exact mul_nonneg this (le_of_lt hr)
+    simpa [hvol, hring, ENNReal.toReal_ofReal, hnonneg]
   -- Put everything together
-  simp [length, hset, htoReal, hring, hr0]
+  have hlen_eq_toReal : length ({t : ℝ | |t - c| < r})
+      = (volume (Set.Ioo (c - r) (c + r))).toReal := by
+    simp [length, hset]
+  simpa [hlen_eq_toReal] using htoReal'
 
 /-- Under fixed geometry, the width is bounded by the shadow length. -/
 lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
