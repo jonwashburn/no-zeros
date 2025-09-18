@@ -176,7 +176,7 @@ lemma finite_lintegral_on_tent_of_L2
   -- and finiteness follows from the L² bound of ‖gradU‖.
   have hTent : MeasurableSet (tent I α) := measurableSet_tent (hI := hI)
   set C : ℝ := max (α * length I) 0
-  have hCnonneg : 0 ≤ C := le_max_right _ _
+  have _ : 0 ≤ C := le_max_right _ _
   -- a.e. bound σ ≤ C on the tent
   have hBound_base : ∀ᵐ p ∂volume, p ∈ tent I α → p.2 ≤ C := by
     refine Filter.Eventually.of_forall ?_
@@ -216,7 +216,6 @@ lemma finite_lintegral_on_tent_of_L2
     refine lintegral_congr_ae ?h
     refine Filter.Eventually.of_forall (fun p => ?_)
     have h1 : 0 ≤ ‖gradU p‖^2 := by exact sq_nonneg _
-    have h2 : 0 ≤ C := hCnonneg
     -- ENNReal.ofReal (C * a) = ofReal C * ofReal a
     simpa [mul_comm, mul_left_comm, mul_assoc] using (ENNReal.ofReal_mul' (p := C) (q := ‖gradU p‖^2) h1)
   have hconst_eq :
@@ -235,7 +234,7 @@ lemma finite_lintegral_on_tent_of_L2
         (MeasureTheory.lintegral_const_mul'' (μ := volume.restrict (tent I α))
           (r := ENNReal.ofReal C) (f := fun p : (ℝ × ℝ) => ENNReal.ofReal (‖gradU p‖^2))
           haemeas)
-    simpa [hconst_eq₁, this]
+    simp [hconst_eq₁, this]
   have hlin :
       (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2 * p.2))
         ≤ ENNReal.ofReal C * (∫⁻ p in tent I α, ENNReal.ofReal (‖gradU p‖^2)) := by
@@ -297,7 +296,7 @@ lemma fixed_geometry_subset_tent (Q : Set (ℝ × ℝ)) (h : fixed_geometry Q) :
   intro p hp
   -- Unpack the fixed geometry structure
   obtain ⟨center, width, height, _, _, _,
-          _, _, hQsub, hQsup, hupper, hcenter_top, hheight_shadow⟩ := h
+          _, _, hQsub, _, hupper, hcenter_top, hheight_shadow⟩ := h
   simp only [tent, Set.mem_setOf_eq]
 
   -- From hQsub, p is in the rectangle around center
@@ -358,9 +357,8 @@ lemma fixed_geometry_shadow_core_subset {Q : Set (ℝ × ℝ)} (h : fixed_geomet
   -- Choose a uniform height inside the rectangle witness
   let σ := min (h.center.2 / 2) (h.height / 4)
   have hσ_pos : 0 < σ := by
-    have hc_pos : 0 < h.center.2 := by
-      -- center ∈ Q and Q ⊆ {p | 0 < p.2}
-      exact fixed_geometry_upper h h.center_in
+    have : 0 < h.center.2 :=
+      fixed_geometry_upper h h.center_in
     have hc2_pos : 0 < h.center.2 / 2 := by nlinarith
     have hh4_pos : 0 < h.height / 4 := by nlinarith [h.height_pos]
     have : 0 < min (h.center.2 / 2) (h.height / 4) := lt_min hc2_pos hh4_pos
@@ -371,7 +369,7 @@ lemma fixed_geometry_shadow_core_subset {Q : Set (ℝ × ℝ)} (h : fixed_geomet
     have hle1 : σ ≤ h.center.2 / 2 := by exact min_le_left _ _
     have hc2_lt : (h.center.2 / 2) < h.center.2 + h.height / 2 := by
       have : 0 < h.center.2 / 2 + h.height / 2 := by
-        have hc_pos : 0 < h.center.2 := by exact fixed_geometry_upper h h.center_in
+        have : 0 < h.center.2 := fixed_geometry_upper h h.center_in
         have hh_pos : 0 < h.height := h.height_pos
         nlinarith
       linarith
@@ -405,19 +403,21 @@ lemma length_abs_lt (c r : ℝ) (hr : 0 < r) :
   have hle : (c - r) ≤ (c + r) := le_of_lt hlt
   have hvol : volume (Set.Ioo (c - r) (c + r))
       = ENNReal.ofReal ((c + r) - (c - r)) := by
-    simpa [Real.volume_Ioo, hle]
+    simp [Real.volume_Ioo, hle]
   have hring : (c + r) - (c - r) = 2 * r := by ring
   have htoReal' : (volume (Set.Ioo (c - r) (c + r))).toReal = 2 * r := by
     have hnonneg : 0 ≤ (2 : ℝ) * r := by
       have : 0 ≤ r := le_of_lt hr
       have : 0 ≤ (2 : ℝ) := by norm_num
       exact mul_nonneg this (le_of_lt hr)
-    simpa [hvol, hring, ENNReal.toReal_ofReal, hnonneg]
+    simp [hvol, hring, ENNReal.toReal_ofReal, hnonneg]
   -- Put everything together
   have hlen_eq_toReal : length ({t : ℝ | |t - c| < r})
       = (volume (Set.Ioo (c - r) (c + r))).toReal := by
     simp [length, hset]
-  simpa [hlen_eq_toReal] using htoReal'
+  -- Conclude: length equals 2r
+  have : (volume (Set.Ioo (c - r) (c + r))).toReal = 2 * r := htoReal'
+  simpa [hlen_eq_toReal, this]
 
 /-- Under fixed geometry, the width is bounded by the shadow length. -/
 lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geometry Q) :
@@ -427,7 +427,7 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
     fixed_geometry_shadow_core_subset h
   -- finiteness of volume of shadow Q: it lies in a bounded interval
   have hshadow_in_Icc : shadow Q ⊆ Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2) := by
-    intro t ht; rcases ht with ⟨σ, hσpos, hmem⟩
+    intro t ht; rcases ht with ⟨σ, _, hmem⟩
     have hrect := h.subset_rect hmem
     have habs : |t - h.center.1| ≤ h.width / 2 := (hrect.left)
     have hpair := abs_le.mp habs
@@ -445,7 +445,7 @@ lemma fixed_geometry_width_le_shadowLen {Q : Set (ℝ × ℝ)} (h : fixed_geomet
     have hfinIcc : volume (Set.Icc (h.center.1 - h.width / 2) (h.center.1 + h.width / 2)) < ⊤ := by
       have hlen : 0 ≤ (h.center.1 + h.width / 2) - (h.center.1 - h.width / 2) := by
         nlinarith [le_of_lt h.width_pos]
-      simpa [Real.volume_Icc, hle, hlen]
+      simp [Real.volume_Icc, hle, hlen]
     -- monotonicity: shadow Q ⊆ Icc ⇒ μ(shadow Q) ≤ μ(Icc) < ∞
     exact ne_of_lt (lt_of_le_of_lt (measure_mono hshadow_in_Icc) hfinIcc)
   have hmono := length_mono (I := {t : ℝ | |t - h.center.1| < h.width / 2}) (J := shadow Q) hsub hJfin
