@@ -10,15 +10,13 @@ import rh.RS.OffZerosBridge
 import Mathlib.Tactic
 import Mathlib.Topology.Instances.Complex
 import Mathlib.Topology.MetricSpace.Basic
+import rh.RS.Domain
 
 noncomputable section
 
 open Set Complex Filter
 
 namespace RH.RS
-
-/-- Right half-plane domain Ω = { s : ℂ | 1/2 < Re s }. -/
-def Ω : Set ℂ := { s : ℂ | (1 / 2 : ℝ) < s.re }
 
 /-- Ω is open. -/
 lemma isOpen_Ω : IsOpen Ω := by

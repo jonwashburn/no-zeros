@@ -4,6 +4,7 @@ import Mathlib.Tactic
 import Mathlib.Topology.Defs.Filter
 import Mathlib.Analysis.Complex.RemovableSingularity
 import rh.academic_framework.CompletedXi
+import rh.RS.OffZerosBridge
 
 /-!
 # Xi_ext bridge: local removable packaging and ζ‑assignment via zeros equivalence

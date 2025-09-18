@@ -128,7 +128,7 @@ lemma boxEnergy_mono {gradU : (ℝ × ℝ) → ℝ × ℝ} {σ : Measure (ℝ ×
   have hmono :
       (∫⁻ p in P, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ)
         ≤ (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) := by
-    exact Measure.lintegral_mono_set (μ := σ) hPmeas hQmeas h
+    exact lintegral_mono_set (μ := σ) (s := P) (t := Q) h hPmeas hQmeas
   -- Finiteness of both sides
   have hIQfin :
       (∫⁻ p in Q, ENNReal.ofReal (‖gradU p‖^2 * p.2) ∂σ) ≠ ⊤ := by

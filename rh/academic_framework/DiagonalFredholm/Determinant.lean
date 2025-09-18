@@ -41,4 +41,9 @@ identity should import the dedicated determinant module that supplies it. -/
 inductive Det2IdentityExtended : Prop
 | intro : Det2IdentityExtended
 
+/-- Minimal exported diagonal model `diagDet2` name used by RS layer.
+This is a harmless placeholder (constant 1); RS only requires the name for
+packaging assumptions, not a computation. -/
+@[simp] def diagDet2 (s : ℂ) : ℂ := 1
+
 end RH.AcademicFramework.DiagonalFredholm

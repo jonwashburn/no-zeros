@@ -74,7 +74,12 @@ def det2_on_Ω_proved_from_diagonal
   (hDiagNZ : ∀ {s}, s ∈ Ω → RH.AcademicFramework.DiagonalFredholm.diagDet2 s ≠ 0)
   : Det2OnOmega := by
   classical
-  rcases hBridge with ⟨E, hEA, hENZ, hEq⟩
+  -- Extract the witness and its properties without eliminating into Type directly
+  let E : ℂ → ℂ := Classical.choose hBridge
+  have hPack := Classical.choose_spec hBridge
+  have hEA : AnalyticOn ℂ E Ω := hPack.1
+  have hENZ : ∀ {s}, s ∈ Ω → E s ≠ 0 := hPack.2.1
+  have hEq  : Set.EqOn det2 (fun s => RH.AcademicFramework.DiagonalFredholm.diagDet2 s * E s) Ω := hPack.2.2
   -- Analyticity: product of analytic functions on Ω
   have hAnalytic : AnalyticOn ℂ det2 Ω := by
     -- det2 ≡ diagDet2 * E on Ω
